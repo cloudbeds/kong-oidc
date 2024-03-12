@@ -194,7 +194,19 @@ function M.injectHeaders(header_names, header_claims, sources)
 end
 
 function M.has_bearer_access_token()
-  local header = ngx.req.get_headers(200)['Authorization']
+  local headers = ngx.req.raw_header()
+  local header
+
+  -- Split the raw headers into lines and iterate through them
+  for line in headers:gmatch("[^\r\n]+") do
+    -- Check if the current line starts with "Authorization:"
+    if line:find("^Authorization:") then
+      -- Extract the value of the Authorization header
+      header = line:match(": (.+)$")
+      break
+    end
+  end
+  
   if header and header:find(" ") then
     local divider = header:find(' ')
     if string.lower(header:sub(0, divider-1)) == string.lower("Bearer") then
