@@ -200,7 +200,7 @@ function M.has_bearer_access_token()
   -- Split the raw headers into lines and iterate through them
   for line in headers:gmatch("[^\r\n]+") do
     -- Check if the current line starts with "Authorization:"
-    if line:find("^Authorization:") then
+    if line:find("^[Aa]uthorization:") then
       -- Extract the value of the Authorization header
       header = line:match(": (.+)$")
       break
