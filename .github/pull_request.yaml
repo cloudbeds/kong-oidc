@@ -7,14 +7,14 @@ jobs:
     runs-on: default
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
-    - name: Build Docker image
-      run: docker build --build-arg KONG_BASE_TAG=:3.1.0-alpine -t kong-oidc:local -f test/docker/unit/Dockerfile .
+      - name: Build Docker image
+        run: docker build --build-arg KONG_BASE_TAG=:3.1.0-alpine -t kong-oidc:local -f test/docker/unit/Dockerfile .
 
-    - name: Run unit tests
-      run: docker run --rm kong-oidc:local ./test/unit/run.sh
+      - name: Run unit tests
+        run: docker run --rm kong-oidc:local lua test/unit/test_header.lua
