@@ -194,7 +194,7 @@ function M.injectHeaders(header_names, header_claims, sources)
 end
 
 function M.has_bearer_access_token()
-  local header = ngx.req.get_headers()['Authorization']
+  local header = ngx.req.get_headers(200)['Authorization']
   if header and header:find(" ") then
     local divider = header:find(' ')
     if string.lower(header:sub(0, divider-1)) == string.lower("Bearer") then
