@@ -118,7 +118,7 @@ function introspect(oidcConfig)
       res, err = require("resty.openidc").introspect(oidcConfig)
     end
     if err then
-      ngx.log(ngx.DEBUG, "oidc error: " .. cjson.encode(err) .. cjson.encode(res) .. cjson.encode(oidcConfig))
+      ngx.log(ngx.DEBUG, "oidc error: " .. cjson.encode(err) .. cjson.encode(res) .. cjson.encode(utils.sanitize_oidc_config(oidcConfig)))
       if oidcConfig.bearer_only == "yes" then
         ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
         return kong.response.error(ngx.HTTP_UNAUTHORIZED)
