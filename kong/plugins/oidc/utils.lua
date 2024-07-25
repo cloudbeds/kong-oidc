@@ -227,4 +227,17 @@ function M.has_common_item(t1, t2)
   return false
 end
 
+-- sanitize oidc config for debugging output
+function M.sanitize_oidc_config(config)
+    local sanitized = {}
+    for k, v in pairs(config) do
+        if k == "client_id" or k == "client_secret" then
+            sanitized[k] = "<hidden>"
+        else
+            sanitized[k] = v
+        end
+    end
+    return sanitized
+end
+
 return M
