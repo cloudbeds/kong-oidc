@@ -1,5 +1,5 @@
 package = "kong-plugin-oidc"
-version = "1.4.0-1"
+version = "1.4.0-2"
 source = {
     url = "git://github.com/revomatico/kong-oidc",
     tag = "master",
@@ -23,6 +23,7 @@ description = {
 }
 dependencies = {
     "lua-resty-openidc ~> 1.7.6-3"
+    "cjson ~> 2.1.0.10-1"
 }
 build = {
     type = "builtin",

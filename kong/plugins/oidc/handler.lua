@@ -5,6 +5,7 @@ local OidcHandler = {
 local utils = require("kong.plugins.oidc.utils")
 local filter = require("kong.plugins.oidc.filter")
 local session = require("kong.plugins.oidc.session")
+local cjson = require("cjson")
 
 
 function OidcHandler:access(config)
@@ -117,6 +118,7 @@ function introspect(oidcConfig)
       res, err = require("resty.openidc").introspect(oidcConfig)
     end
     if err then
+      ngx.log(ngx.DEBUG, "oidc error: " .. cjson.encode(err) .. cjson.encode(res) .. cjson.encode(oidcConfig))
       if oidcConfig.bearer_only == "yes" then
         ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
         return kong.response.error(ngx.HTTP_UNAUTHORIZED)
