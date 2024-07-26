@@ -30,4 +30,35 @@ function TestHandler:test_header_add()
   lu.assertEquals(headers["X-Aud"], "aud123")
 end
 
+
+function TestHandler:testExtractAuthorizationHeaderWhenIsPresent()
+  ngx.req.raw_header = function()
+      return "Content-Type: application/json\r\nAuthorization: Bearer token\r\n"
+  end
+  
+  local authorizationHeader = ngx.req.raw_header():match("[\r\n][Aa]uthorization:%s*(.-)[\r\n]")
+  
+  -- Assert that the extracted Authorization header is correct
+  lu.assertEquals(authorizationHeader, "Bearer token")
+
+  ngx.req.raw_header = function()
+    return "Content-Type: application/json\r\nauthorization: Bearer token\r\n"
+  end
+
+  local authorizationHeader = ngx.req.raw_header():match("[\r\n][Aa]uthorization:%s*(.-)[\r\n]")
+
+  -- Assert that the extracted Authorization header is correct
+  lu.assertEquals(authorizationHeader, "Bearer token")
+end
+
+function TestHandler:testExtractAuthorizationHeaderWhenIsNotPresent()
+  ngx.req.raw_header = function()
+      return "Content-Type: application/json\r\nAuthorizationZ: Bearer token\r\n"
+  end
+  
+  local authorizationHeader = ngx.req.raw_header():match("[\r\n][Aa]uthorization:%s*(.-)[\r\n]")
+  
+  lu.assertNil(authorizationHeader)
+end
+
 lu.run()
