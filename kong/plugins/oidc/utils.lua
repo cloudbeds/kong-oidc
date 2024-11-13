@@ -169,23 +169,24 @@ end
 
 function M.injectHeaders(header_names, header_claims, sources)
   if #header_names ~= #header_claims then
-    kong.log.err('Different number of elements provided in header_names and header_claims. Headers will not be added.')
+    kong.log.err("Header names and claims count mismatch. Skipping header injection.")
     return
   end
-  for i = 1, #header_names do
-    local header, claim
-    header = header_names[i]
-    claim = header_claims[i] 
+
+  for i, header in ipairs(header_names) do
+    local claim = header_claims[i] -- Match header to its corresponding claim
+    if not claim then
+      kong.log.err("Missing claim for header: " .. header)
+      return
+    end
+
     kong.service.request.clear_header(header)
-    for j = 1, #sources do
-      local source, claim_value
-      source = sources[j]
-      claim_value = source[claim]
-      -- Convert table to string if claim is a table
+    for _, source in ipairs(sources) do
+      local claim_value = source and source[claim]
       if type(claim_value) == "table" then
         claim_value = table.concat(claim_value, ", ")
       end
-      if (source and source[claim]) then
+      if claim_value then
         kong.service.request.set_header(header, claim_value)
         break
       end
