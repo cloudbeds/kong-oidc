@@ -168,6 +168,9 @@ function M.injectGroups(user, claim)
 end
 
 function M.injectHeaders(header_names, header_claims, sources)
+  if type(header_names) ~= "table" or #header_names == 0 or type(header_claims) ~= "table" or #header_claims == 0 then
+    return
+  end
   if #header_names ~= #header_claims then
     kong.log.err('Different number of elements provided in header_names and header_claims. Headers will not be added.')
     return
