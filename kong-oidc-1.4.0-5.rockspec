@@ -1,9 +1,9 @@
 package = "kong-oidc"
-version = "1.4.0-4"
+version = "1.4.0-5"
 source = {
-    url = "git://github.com/revomatico/kong-oidc",
-    tag = "master",
-    dir = "kong-oidc"
+    url = "git://github.com/cloudbeds/kong-oidc",
+    tag = "1.4.0-5",
+    dir = "./"
 }
 description = {
     summary = "A Kong plugin for implementing the OpenID Connect Relying Party (RP) functionality",
