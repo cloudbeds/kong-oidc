@@ -28,6 +28,14 @@ return {
             }
           },
           {
+            allowed_issuers = {
+              type = "array",
+              required = false,
+              elements = { type = "string" },
+              default = {}, -- Default is an empty array, meaning no restriction
+            },
+          },
+          {
             discovery = {
               type = "string",
               required = true,
