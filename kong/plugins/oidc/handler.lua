@@ -162,7 +162,7 @@ function introspect(oidcConfig)
 
     -- Handle introspection errors
     if err or not res or not res.active then
-      kong.log.err("OIDC introspection failed: " .. (err or "Inactive token"))
+      kong.log.debug("OIDC introspection failed: " .. (err or "Inactive token"))
       if oidcConfig.bearer_only == "yes" then
         ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. (err or "inactive_token") .. '"'
         return kong.response.error(ngx.HTTP_UNAUTHORIZED)
