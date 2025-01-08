@@ -207,6 +207,25 @@ function M.has_bearer_access_token()
   return false
 end
 
+-- Function to get the Bearer token from the Authorization header
+function M.get_bearer_access_token()
+  -- Get the Authorization header
+  local header = ngx.req.get_headers()['Authorization']
+
+  -- Check if the header exists and contains a space (indicating a token might follow)
+  if header and header:find(" ") then
+    local divider = header:find(' ')
+
+    -- Check if the header starts with "Bearer" (case-insensitive)
+    if string.lower(header:sub(0, divider-1)) == string.lower("Bearer") then
+      -- Return the token after the space
+      return header:sub(divider + 1)
+    end
+  end
+  -- Return nil if no valid Bearer token is found
+  return nil
+end
+
 -- verify if tables t1 and t2 have at least one common string item
 -- instead of table, also string can be provided as t1 or t2
 function M.has_common_item(t1, t2)
