@@ -61,7 +61,8 @@ return {
           {
             introspection_endpoint_auth_method = {
               type = "string",
-              required = false
+              required = false,
+              default = "client_secret_basic"
             }
           },
           {
