@@ -237,7 +237,7 @@ for _, strategy in helpers.each_strategy() do
 
         -- Generate a valid JWT
         local token = generate_jwt(
-          { sub = "1234567890", name = "Test User", iss = "https://mock.example.com", exp = ngx.time() + 3600 },
+          { sub = "1234567890", name = "Test User", iss = "https://mock.example.com/oauth2/serverid", exp = ngx.time() + 3600 },
           "test-secret"
         )
 
@@ -261,7 +261,7 @@ for _, strategy in helpers.each_strategy() do
 
           -- Generate a valid JWT
           local token = generate_jwt(
-            { sub = "1234567890", name = "Test User", iss = "https://mock.example.com", exp = ngx.time() + 3600 },
+            { sub = "1234567890", name = "Test User", iss = "https://mock.example.com/oauth2/serverid", exp = ngx.time() + 3600 },
             "test-secret"
           )
 
@@ -279,8 +279,8 @@ for _, strategy in helpers.each_strategy() do
           local body = assert.response(res).has.jsonbody()
           assert.is_nil(body.message) -- Plugin should allow the request
         end)
-
       end)
+
     end)
   end)
 end

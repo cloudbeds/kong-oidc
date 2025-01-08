@@ -5,8 +5,6 @@ local v = require("spec.helpers").validate_plugin_config_schema
 describe("Plugin: " .. PLUGIN_NAME .. " (schema), ", function()
   it("minimal conf validates", function()
     assert(v({
-      client_id = "client-id",
-      client_secret = "client-secret",
     }, schema_def))
   end)
 
@@ -27,8 +25,7 @@ describe("Plugin: " .. PLUGIN_NAME .. " (schema), ", function()
       },
       introspection_endpoint = "https://example.com/introspection", -- Optional field to validate
       introspection_endpoint_auth_method = "sdfdsa",
-      introspection_cache_ignore = "false", -- Optional field to validate
-      timeout = 120,
+      introspection_cache_ignore = "no", -- Optional field to validate
       ssl_verify = "no", -- Optional field to validate
       session_secret = "secret", -- Optional field to validate
     }, schema_def))
