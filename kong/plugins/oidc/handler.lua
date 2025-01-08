@@ -152,7 +152,6 @@ function introspect(oidcConfig)
       introspection_endpoint = introspection_config.introspection_endpoint,
       client_id = introspection_config.client_id,
       client_secret = introspection_config.client_secret,
-      introspection_endpoint_auth_method = introspection_config.introspection_endpoint_auth_method,
       timeout = oidcConfig.timeout,
       ssl_verify = oidcConfig.ssl_verify,
       keepalive = oidcConfig.keepalive
