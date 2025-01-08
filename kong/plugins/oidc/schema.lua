@@ -27,29 +27,22 @@ return {
               required = true
             }
           },
-          {
-            discovery = {
-              type = "string",
-              required = true,
-              default = "https://.well-known/openid-configuration"
-            }
-          },
-          -- New configuration: map of introspection endpoints based on issuer
-          {
-            introspection_configurations = {
-              type = "map",
-              required = false,
-              default = {},
-              keys = { type = "string" },  -- The key is a string representing the issuer URL
-              values = {
+          -- List of introspection configurations, each with its own settings
+          { introspection_configurations = {
+              type = "array",
+              elements = {
                 type = "record",
                 fields = {
-                  { introspection_endpoint = { type = "string", required = true } },
-                  { client_id = { type = "string", required = true } },
-                  { client_secret = { type = "string", required = true } },
-                  { auth_method = { type = "string", required = true } },
+                  { issuer = { type = "string", required = false } },
+                  { introspection_endpoint = { type = "string", required = false } },
+                  { client_id = { type = "string", required = false } },
+                  { client_secret = { type = "string", required = false } },
+                  { auth_method = { type = "string", default = "client_secret_post", required = false } },
+                  { ssl_verify = { type = "string", default = "yes", required = false } },
+                  { introspection_cache_ignore = { type = "string", default = "no", required = false } }
                 }
-              }
+              },
+              required = false
             }
           },
           {
@@ -79,248 +72,14 @@ return {
             }
           },
           {
-            bearer_only = {
-              type = "string",
-              required = true,
-              default = "no"
-            }
-          },
-          {
-            realm = {
-              type = "string",
-              required = true,
-              default = "kong"
-            }
-          },
-          {
-            redirect_uri = {
-              type = "string"
-            }
-          },
-          {
-            scope = {
-              type = "string",
-              required = true,
-              default = "openid"
-            }
-          },
-          {
-            validate_scope = {
-              type = "string",
-              required = true,
-              default = "no"
-            }
-          },
-          {
-            response_type = {
-              type = "string",
-              required = true,
-              default = "code"
-            }
-          },
-          {
             ssl_verify = {
               type = "string",
               required = true,
-              default = "no"
-            }
-          },
-          {
-            use_jwks = {
-              type = "string",
-              required = true,
-              default = "no"
-            }
-          },
-          {
-            token_endpoint_auth_method = {
-              type = "string",
-              required = true,
-              default = "client_secret_post"
+              default = "yes"
             }
           },
           {
             session_secret = {
-              type = "string",
-              required = false
-            }
-          },
-          {
-            recovery_page_path = {
-              type = "string"
-            }
-          },
-          {
-            logout_path = {
-              type = "string",
-              required = false,
-              default = "/logout"
-            }
-          },
-          {
-            redirect_after_logout_uri = {
-              type = "string",
-              required = false,
-              default = "/"
-            }
-          },
-          {
-            redirect_after_logout_with_id_token_hint = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            post_logout_redirect_uri = {
-              type = "string",
-              required = false
-            }
-          },
-          {
-            unauth_action = {
-              type = "string",
-              required = false,
-              default = "auth"
-            }
-          },
-          {
-            filters = {
-              type = "string"
-            }
-          },
-          {
-            ignore_auth_filters = {
-              type = "string",
-              required = false
-            }
-          },
-          {
-            userinfo_header_name = {
-              type = "string",
-              required = false,
-              default = "X-USERINFO"
-            }
-          },
-          {
-            id_token_header_name = {
-              type = "string",
-              required = false,
-              default = "X-ID-Token"
-            }
-          },
-          {
-            access_token_header_name = {
-              type = "string",
-              required = false,
-              default = "X-Access-Token"
-            }
-          },
-          {
-            access_token_as_bearer = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            disable_userinfo_header = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            disable_id_token_header = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            disable_access_token_header = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            revoke_tokens_on_logout = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            groups_claim = {
-              type = "string",
-              required = false,
-              default = "groups"
-            }
-          },
-          {
-            skip_already_auth_requests = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            bearer_jwt_auth_enable = {
-              type = "string",
-              required = false,
-              default = "no"
-            }
-          },
-          {
-            bearer_jwt_auth_allowed_auds = {
-              type = "array",
-              required = false,
-              elements = {
-                type = "string"
-              },
-            }
-          },
-          {
-            bearer_jwt_auth_signing_algs = {
-              type = "array",
-              required = true,
-              elements = {
-                type = "string"
-              },
-              default = {
-                "RS256"
-              }
-            }
-          },
-          {
-            header_names = {
-              type = "array",
-              required = true,
-              elements = {
-                type = "string"
-              },
-              default = {}
-            }
-          },
-          {
-            header_claims = {
-              type = "array",
-              required = true,
-              elements = {
-                type = "string"
-              },
-              default = {}
-            }
-          },
-          {
-            http_proxy = {
-              type = "string",
-              required = false
-            }
-          },
-          {
-            https_proxy = {
               type = "string",
               required = false
             }
