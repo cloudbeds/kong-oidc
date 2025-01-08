@@ -110,39 +110,89 @@ function make_oidc(oidcConfig)
 end
 
 function introspect(oidcConfig)
+  -- Check for Bearer token or bearer-only mode
   if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
     local res, err
-    if oidcConfig.use_jwks == "yes" then
-      res, err = require("resty.openidc").bearer_jwt_verify(oidcConfig)
-    else
-      res, err = require("resty.openidc").introspect(oidcConfig)
+
+    -- Decode the token to extract the issuer
+    local jwt = require("resty.jwt")
+    local token = utils.get_bearer_access_token()
+    local decoded_token = jwt:load_jwt(token)
+    if not decoded_token or not decoded_token.payload.iss then
+      kong.log.err("Token missing 'iss' claim")
+      return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid token")
     end
-    if err then
-      ngx.log(ngx.DEBUG, "oidc error: " .. cjson.encode(err) .. cjson.encode(res) .. cjson.encode(utils.sanitize_oidc_config(oidcConfig)))
+
+    local issuer = decoded_token.payload.iss
+    kong.log.debug("Decoded issuer: " .. issuer)
+
+    -- Retrieve the introspection configuration for the issuer or use legacy behavior
+    local introspection_config
+    if oidcConfig.introspection_configurations then
+      introspection_config = oidcConfig.introspection_configurations[issuer]
+    end
+
+    -- Fallback to the old configuration if no issuer-specific configuration is found
+    if not introspection_config then
+      if oidcConfig.introspection_endpoint then
+        kong.log.debug("Using legacy introspection endpoint for issuer: " .. issuer)
+        introspection_config = {
+          introspection_endpoint = oidcConfig.introspection_endpoint,
+          client_id = oidcConfig.client_id,
+          client_secret = oidcConfig.client_secret,
+          introspection_endpoint_auth_method = oidcConfig.auth_method,
+        }
+      else
+        kong.log.err("Unsupported issuer: " .. issuer)
+        return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Unsupported issuer")
+      end
+    end
+
+    -- Create a temporary config specific to the issuer
+    local temp_oidcConfig = {
+      introspection_endpoint = introspection_config.introspection_endpoint,
+      client_id = introspection_config.client_id,
+      client_secret = introspection_config.client_secret,
+      introspection_endpoint_auth_method = introspection_config.introspection_endpoint_auth_method,
+      timeout = oidcConfig.timeout,
+      ssl_verify = oidcConfig.ssl_verify,
+      keepalive = oidcConfig.keepalive
+    }
+
+    -- Perform introspection using the dynamically configured settings
+    res, err = require("resty.openidc").introspect(temp_oidcConfig)
+
+    -- Handle introspection errors
+    if err or not res or not res.active then
+      kong.log.err("OIDC introspection failed: " .. (err or "Inactive token"))
       if oidcConfig.bearer_only == "yes" then
-        ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
+        ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. (err or "inactive_token") .. '"'
         return kong.response.error(ngx.HTTP_UNAUTHORIZED)
       end
       return nil
     end
+
+    -- Validate scope if required
     if oidcConfig.validate_scope == "yes" then
-      local validScope = false
+      local valid_scope = false
       if res.scope then
         for scope in res.scope:gmatch("([^ ]+)") do
           if scope == oidcConfig.scope then
-            validScope = true
+            valid_scope = true
             break
           end
         end
       end
-      if not validScope then
+      if not valid_scope then
         kong.log.err("Scope validation failed")
         return kong.response.error(ngx.HTTP_FORBIDDEN)
       end
     end
-    ngx.log(ngx.DEBUG, "OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
+
+    kong.log.debug("OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
     return res
   end
+
   return nil
 end
 

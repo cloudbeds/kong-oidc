@@ -28,18 +28,28 @@ return {
             }
           },
           {
-            allowed_issuers = {
-              type = "array",
-              required = false,
-              elements = { type = "string" },
-              default = {}, -- Default is an empty array, meaning no restriction
-            },
-          },
-          {
             discovery = {
               type = "string",
               required = true,
               default = "https://.well-known/openid-configuration"
+            }
+          },
+          -- New configuration: map of introspection endpoints based on issuer
+          {
+            introspection_configurations = {
+              type = "map",
+              required = false,
+              default = {},
+              keys = { type = "string" },  -- The key is a string representing the issuer URL
+              values = {
+                type = "record",
+                fields = {
+                  { introspection_endpoint = { type = "string", required = true } },
+                  { client_id = { type = "string", required = true } },
+                  { client_secret = { type = "string", required = true } },
+                  { auth_method = { type = "string", required = true } },
+                }
+              }
             }
           },
           {

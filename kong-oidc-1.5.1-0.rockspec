@@ -1,8 +1,8 @@
 package = "kong-oidc"
-version = "1.5.0-0"
+version = "1.5.1-0"
 source = {
     url = "git://github.com/cloudbeds/kong-oidc",
-    tag = "1.5.0-0",
+    tag = "1.5.1-0",
     dir = "kong-oidc"
 }
 description = {
@@ -22,7 +22,8 @@ description = {
     license = "Apache 2.0"
 }
 dependencies = {
-    "lua-resty-openidc ~> 1.7.6-3"
+    "lua-resty-openidc ~> 1.7.6-3",
+    "lua-resty-jwt >= 0.2.0"
 }
 build = {
     type = "builtin",
