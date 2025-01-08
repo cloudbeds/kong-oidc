@@ -11,6 +11,22 @@ local cjson = require("cjson")
 function OidcHandler:access(config)
   local oidcConfig = utils.get_options(config, ngx)
 
+
+  -- Debug: Log the introspection configuration map
+  if oidcConfig.introspection_configurations then
+    ngx.log(ngx.DEBUG, "OidcHandler introspection configurations:")
+    for issuer, config in pairs(oidcConfig.introspection_configurations) do
+      ngx.log(ngx.DEBUG, string.format("  Issuer: %s, Config: %s", issuer, tostring(config)))
+      -- You can further log individual fields of each config, if needed
+      ngx.log(ngx.DEBUG, string.format("    Introspection Endpoint: %s", config.introspection_endpoint or "not set"))
+      ngx.log(ngx.DEBUG, string.format("    Client ID: %s", "hidden" or "not set"))
+      ngx.log(ngx.DEBUG, string.format("    Client Secret: %s", "hidden" or "not set"))
+      ngx.log(ngx.DEBUG, string.format("    Auth Method: %s", config.introspection_endpoint_auth_method or "not set"))
+    end
+  else
+    ngx.log(ngx.DEBUG, "OidcHandler: No introspection configurations found")
+  end
+
   -- partial support for plugin chaining: allow skipping requests, where higher priority
   -- plugin has already set the credentials. The 'config.anomyous' approach to define
   -- "and/or" relationship between auth plugins is not utilized
