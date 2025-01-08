@@ -6,19 +6,19 @@ local introspection_schema = {
   fields = {
     { issuer = {
       type = "string",
-      required = true
+      required = false
     } },
     { introspection_endpoint = {
       type = "string",
-      required = true
+      required = false
     } },
     { client_id = {
       type = "string",
-      required = true
+      required = false
     } },
     { client_secret = {
       type = "string",
-      required = true
+      required = false
     } },
     { auth_method = {
       type = "string",
