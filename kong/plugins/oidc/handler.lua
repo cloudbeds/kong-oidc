@@ -126,10 +126,19 @@ function introspect(oidcConfig)
     local issuer = decoded_token.payload.iss
     kong.log.debug("Decoded issuer: " .. issuer)
 
+    -- Extract the full URL (including https://) from the issuer
+    local url = issuer:match("^(https?://[^/]+)")  -- This captures the full URL including https://
+    if not url then
+      kong.log.err("Unable to extract URL from issuer: " .. issuer)
+      return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid issuer")
+    end
+
+    kong.log.debug("Extracted URL: " .. url)
+
     -- Retrieve the introspection configuration for the issuer or use legacy behavior
     local introspection_config
     if oidcConfig.introspection_configurations then
-      introspection_config = oidcConfig.introspection_configurations[issuer]
+      introspection_config = oidcConfig.introspection_configurations[url]
     end
 
     -- Fallback to the old configuration if no issuer-specific configuration is found
