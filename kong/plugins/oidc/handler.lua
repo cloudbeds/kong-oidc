@@ -140,7 +140,7 @@ function introspect(oidcConfig)
           introspection_endpoint = oidcConfig.introspection_endpoint,
           client_id = oidcConfig.client_id,
           client_secret = oidcConfig.client_secret,
-          introspection_endpoint_auth_method = oidcConfig.introspection_endpoint_auth_method,
+          introspection_endpoint_auth_method = oidcConfig.auth_method,
         }
       else
         kong.log.err("Unsupported issuer: " .. issuer)
