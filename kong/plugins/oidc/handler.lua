@@ -112,18 +112,29 @@ end
 function introspect(oidcConfig)
   -- Check for Bearer token or bearer-only mode
   if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
-    local res, err
-
-    -- Decode the token to extract the issuer
     local jwt = require("resty.jwt")
     local token = utils.get_bearer_access_token()
     local decoded_token = jwt:load_jwt(token)
-    if not decoded_token or not decoded_token.payload.iss then
-      kong.log.err("Token missing 'iss' claim")
+
+    -- Check if token was successfully decoded
+    if not decoded_token then
+      kong.log.err("Failed to decode JWT token")
       return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid token")
     end
 
+    -- Check for expiration
+    local exp = decoded_token.payload.exp
+    if exp and exp < ngx.time() then
+      kong.log.err("Token has expired")
+      return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Token has expired")
+    end
+
+    -- Extract the issuer and log it
     local issuer = decoded_token.payload.iss
+    if not issuer then
+      kong.log.err("Token missing 'iss' claim")
+      return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid token (missing 'iss' claim)")
+    end
     kong.log.debug("Decoded issuer: " .. issuer)
 
     -- Extract the full URL (including https://) from the issuer
@@ -132,19 +143,18 @@ function introspect(oidcConfig)
       kong.log.err("Unable to extract URL from issuer: " .. issuer)
       return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid issuer")
     end
-
     kong.log.debug("Extracted URL: " .. url)
 
-    -- Retrieve the introspection configuration for the issuer or use legacy behavior
+    -- Retrieve the introspection configuration for the issuer
     local introspection_config
     if oidcConfig.introspection_configurations then
       introspection_config = oidcConfig.introspection_configurations[url]
     end
 
-    -- Fallback to the old configuration if no issuer-specific configuration is found
+    -- Fallback to legacy configuration if no issuer-specific configuration is found
     if not introspection_config then
       if oidcConfig.introspection_endpoint then
-        kong.log.debug("Using legacy introspection endpoint for issuer: " .. issuer)
+        kong.log.debug("Using legacy introspection endpoint for issuer: " .. url)
         introspection_config = {
           introspection_endpoint = oidcConfig.introspection_endpoint,
           client_id = oidcConfig.client_id,
@@ -157,25 +167,25 @@ function introspect(oidcConfig)
       end
     end
 
-    -- Create a temporary config specific to the issuer
+    -- Prepare configuration for introspection
     local temp_oidcConfig = {
       introspection_endpoint = introspection_config.introspection_endpoint,
       client_id = introspection_config.client_id,
       client_secret = introspection_config.client_secret,
       introspection_endpoint_auth_method = introspection_config.introspection_endpoint_auth_method,
-      timeout = oidcConfig.timeout,
-      ssl_verify = oidcConfig.ssl_verify,
-      keepalive = oidcConfig.keepalive
     }
 
-    -- Perform introspection using the dynamically configured settings
-    res, err = require("resty.openidc").introspect(temp_oidcConfig)
+    -- Perform introspection using the configured settings
+    local res, err = require("resty.openidc").introspect(temp_oidcConfig)
 
-    -- Handle introspection errors
+    -- Handle introspection errors and inactive tokens
     if err or not res or not res.active then
-      kong.log.debug("OIDC introspection failed: " .. (err or "Inactive token"))
+      local error_message = err or "Inactive token"
+      kong.log.err("OIDC introspection failed: " .. error_message)
+
+      -- Handle bearer-only mode by providing the error in the WWW-Authenticate header
       if oidcConfig.bearer_only == "yes" then
-        ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. (err or "inactive_token") .. '"'
+        ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. error_message .. '"'
         return kong.response.error(ngx.HTTP_UNAUTHORIZED)
       end
       return nil

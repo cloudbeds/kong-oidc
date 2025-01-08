@@ -1,8 +1,8 @@
 package = "kong-oidc"
-version = "1.5.2-3"
+version = "1.5.2-4"
 source = {
     url = "git://github.com/cloudbeds/kong-oidc",
-    tag = "1.5.2-3",
+    tag = "1.5.2-4",
     dir = "kong-oidc"
 }
 description = {
