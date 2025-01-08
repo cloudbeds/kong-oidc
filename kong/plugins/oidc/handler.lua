@@ -1,46 +1,15 @@
 local OidcHandler = {
-    VERSION = "1.3.0",
+    VERSION = "1.6.0",
     PRIORITY = 1000,
 }
 local utils = require("kong.plugins.oidc.utils")
-local filter = require("kong.plugins.oidc.filter")
 local session = require("kong.plugins.oidc.session")
-local cjson = require("cjson")
-
 
 function OidcHandler:access(config)
   local oidcConfig = utils.get_options(config, ngx)
 
-
-  -- Debug: Log the introspection configuration map
-  if oidcConfig.introspection_configurations then
-    ngx.log(ngx.DEBUG, "OidcHandler introspection configurations:")
-    for issuer, config in pairs(oidcConfig.introspection_configurations) do
-      ngx.log(ngx.DEBUG, string.format("  Issuer: %s, Config: %s", issuer, tostring(config)))
-      -- You can further log individual fields of each config, if needed
-      ngx.log(ngx.DEBUG, string.format("    Introspection Endpoint: %s", config.introspection_endpoint or "not set"))
-      ngx.log(ngx.DEBUG, string.format("    Client ID: %s", "hidden" or "not set"))
-      ngx.log(ngx.DEBUG, string.format("    Client Secret: %s", "hidden" or "not set"))
-      ngx.log(ngx.DEBUG, string.format("    Auth Method: %s", config.introspection_endpoint_auth_method or "not set"))
-    end
-  else
-    ngx.log(ngx.DEBUG, "OidcHandler: No introspection configurations found")
-  end
-
-  -- partial support for plugin chaining: allow skipping requests, where higher priority
-  -- plugin has already set the credentials. The 'config.anomyous' approach to define
-  -- "and/or" relationship between auth plugins is not utilized
-  if oidcConfig.skip_already_auth_requests and kong.client.get_credential() then
-    ngx.log(ngx.DEBUG, "OidcHandler ignoring already auth request: " .. ngx.var.request_uri)
-    return
-  end
-
-  if filter.shouldProcessRequest(oidcConfig) then
-    session.configure(config)
-    handle(oidcConfig)
-  else
-    ngx.log(ngx.DEBUG, "OidcHandler ignoring request, path: " .. ngx.var.request_uri)
-  end
+  session.configure(config)
+  handle(oidcConfig)
 
   ngx.log(ngx.DEBUG, "OidcHandler done")
 end
@@ -48,81 +17,15 @@ end
 function handle(oidcConfig)
   local response
 
-  if oidcConfig.bearer_jwt_auth_enable then
-    response = verify_bearer_jwt(oidcConfig)
-    if response then
-      utils.setCredentials(response)
-      utils.injectGroups(response, oidcConfig.groups_claim)
-      utils.injectHeaders(oidcConfig.header_names, oidcConfig.header_claims, { response })
-      if not oidcConfig.disable_userinfo_header then
-        utils.injectUser(response, oidcConfig.userinfo_header_name)
-      end
-      return
-    end
-  end
-
-  if oidcConfig.introspection_endpoint then
+  if oidcConfig.introspection_endpoint or oidcConfig.introspection_configurations then
     response = introspect(oidcConfig)
-    if response then
-      utils.setCredentials(response)
-      utils.injectGroups(response, oidcConfig.groups_claim)
-      utils.injectHeaders(oidcConfig.header_names, oidcConfig.header_claims, { response })
-      if not oidcConfig.disable_userinfo_header then
-        utils.injectUser(response, oidcConfig.userinfo_header_name)
-      end
-    end
   end
 
-  if response == nil then
-    response = make_oidc(oidcConfig)
-    if response then
-      if response.user or response.id_token then
-        -- is there any scenario where lua-resty-openidc would not provide id_token?
-        utils.setCredentials(response.user or response.id_token)
-      end
-      if response.user and response.user[oidcConfig.groups_claim]  ~= nil then
-        utils.injectGroups(response.user, oidcConfig.groups_claim)
-      elseif response.id_token then
-        utils.injectGroups(response.id_token, oidcConfig.groups_claim)
-      end
-      utils.injectHeaders(oidcConfig.header_names, oidcConfig.header_claims, { response.user, response.id_token })
-      if (not oidcConfig.disable_userinfo_header
-          and response.user) then
-        utils.injectUser(response.user, oidcConfig.userinfo_header_name)
-      end
-      if (not oidcConfig.disable_access_token_header
-          and response.access_token) then
-        utils.injectAccessToken(response.access_token, oidcConfig.access_token_header_name, oidcConfig.access_token_as_bearer)
-      end
-      if (not oidcConfig.disable_id_token_header
-          and response.id_token) then
-        utils.injectIDToken(response.id_token, oidcConfig.id_token_header_name)
-      end
-    end
+  -- Check if introspection was successful and response is valid
+  if not response or not response.active then
+    kong.log.debug(ngx.ERR, "OIDC introspection failed or token is inactive")
+    return kong.response.exit(ngx.HTTP_UNAUTHORIZED, { message = "Unauthorized: Token verification failed" })
   end
-end
-
-function make_oidc(oidcConfig)
-  ngx.log(ngx.DEBUG, "OidcHandler calling authenticate, requested path: " .. ngx.var.request_uri)
-  local unauth_action = oidcConfig.unauth_action
-  if unauth_action ~= "auth" then
-    -- constant for resty.oidc library
-    unauth_action = "deny"
-  end
-  local res, err = require("resty.openidc").authenticate(oidcConfig, ngx.var.request_uri, unauth_action)
-
-  if err then
-    if err == 'unauthorized request' then
-      return kong.response.error(ngx.HTTP_UNAUTHORIZED)
-    else
-      if oidcConfig.recovery_page_path then
-    	  ngx.log(ngx.DEBUG, "Redirecting to recovery page: " .. oidcConfig.recovery_page_path)
-        ngx.redirect(oidcConfig.recovery_page_path)
-      end
-      return kong.response.error(ngx.HTTP_INTERNAL_SERVER_ERROR)
-    end
-  end
-  return res
 end
 
 function introspect(oidcConfig)
@@ -134,37 +37,42 @@ function introspect(oidcConfig)
 
     -- Check if token was successfully decoded
     if not decoded_token then
-      kong.log.err("Failed to decode JWT token")
+      kong.log.debug("Failed to decode JWT token")
       return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid token")
     end
 
     -- Check for expiration
     local exp = decoded_token.payload.exp
     if exp and exp < ngx.time() then
-      kong.log.err("Token has expired")
+      kong.log.debug("Token has expired")
       return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Token has expired")
     end
 
     -- Extract the issuer and log it
     local issuer = decoded_token.payload.iss
     if not issuer then
-      kong.log.err("Token missing 'iss' claim")
+      kong.log.debug("Token missing 'iss' claim")
       return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid token (missing 'iss' claim)")
     end
-    kong.log.debug("Decoded issuer: " .. issuer)
 
     -- Extract the full URL (including https://) from the issuer
     local url = issuer:match("^(https?://[^/]+)")  -- This captures the full URL including https://
     if not url then
-      kong.log.err("Unable to extract URL from issuer: " .. issuer)
+      kong.log.debug("Unable to extract URL from issuer: " .. issuer)
       return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid issuer")
     end
     kong.log.debug("Extracted URL: " .. url)
 
-    -- Retrieve the introspection configuration for the issuer
+    -- Retrieve introspection configurations from the list
+    local introspection_configurations = oidcConfig.introspection_configurations
     local introspection_config
-    if oidcConfig.introspection_configurations then
-      introspection_config = oidcConfig.introspection_configurations[url]
+
+    -- Loop through the list of introspection configurations and match the issuer
+    for _, config in ipairs(introspection_configurations) do
+     if config.issuer == url then
+       introspection_config = config
+       break
+     end
     end
 
     -- Fallback to legacy configuration if no issuer-specific configuration is found
@@ -175,10 +83,11 @@ function introspect(oidcConfig)
           introspection_endpoint = oidcConfig.introspection_endpoint,
           client_id = oidcConfig.client_id,
           client_secret = oidcConfig.client_secret,
-          introspection_endpoint_auth_method = oidcConfig.introspection_endpoint_auth_method
+          introspection_endpoint_auth_method = oidcConfig.introspection_endpoint_auth_method,
+          ssl_verify = oidcConfig.ssl_verify
         }
       else
-        kong.log.err("Unsupported issuer: " .. issuer)
+        kong.log.debug("Unsupported issuer: " .. issuer)
         return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Unsupported issuer")
       end
     end
@@ -189,7 +98,13 @@ function introspect(oidcConfig)
       client_id = introspection_config.client_id,
       client_secret = introspection_config.client_secret,
       introspection_endpoint_auth_method = introspection_config.introspection_endpoint_auth_method,
+      ssl_verify = introspection_config.ssl_verify,
     }
+
+    if not temp_oidcConfig.introspection_endpoint:match("^https://") then
+      kong.log.debug("Insecure introspection endpoint: " .. temp_oidcConfig.introspection_endpoint)
+      return kong.response.error(ngx.HTTP_INTERNAL_SERVER_ERROR, "Insecure introspection endpoint")
+    end
 
     -- Perform introspection using the configured settings
     local res, err = require("resty.openidc").introspect(temp_oidcConfig)
@@ -197,31 +112,8 @@ function introspect(oidcConfig)
     -- Handle introspection errors and inactive tokens
     if err or not res or not res.active then
       local error_message = err or "Inactive token"
-      kong.log.err("OIDC introspection failed: " .. error_message)
-
-      -- Handle bearer-only mode by providing the error in the WWW-Authenticate header
-      if oidcConfig.bearer_only == "yes" then
-        ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. error_message .. '"'
-        return kong.response.error(ngx.HTTP_UNAUTHORIZED)
-      end
+      kong.log.debug("OIDC introspection failed: " .. error_message)
       return nil
-    end
-
-    -- Validate scope if required
-    if oidcConfig.validate_scope == "yes" then
-      local valid_scope = false
-      if res.scope then
-        for scope in res.scope:gmatch("([^ ]+)") do
-          if scope == oidcConfig.scope then
-            valid_scope = true
-            break
-          end
-        end
-      end
-      if not valid_scope then
-        kong.log.err("Scope validation failed")
-        return kong.response.error(ngx.HTTP_FORBIDDEN)
-      end
     end
 
     kong.log.debug("OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
@@ -229,50 +121,6 @@ function introspect(oidcConfig)
   end
 
   return nil
-end
-
-function verify_bearer_jwt(oidcConfig)
-  if not utils.has_bearer_access_token() then
-    return nil
-  end
-  -- setup controlled configuration for bearer_jwt_verify
-  local opts = {
-    accept_none_alg = false,
-    accept_unsupported_alg = false,
-    token_signing_alg_values_expected = oidcConfig.bearer_jwt_auth_signing_algs,
-    discovery = oidcConfig.discovery,
-    timeout = oidcConfig.timeout,
-    ssl_verify = oidcConfig.ssl_verify
-  }
-
-  local discovery_doc, err = require("resty.openidc").get_discovery_doc(opts)
-  if err then
-    kong.log.err('Discovery document retrieval for Bearer JWT verify failed')
-    return nil
-  end
-
-  local allowed_auds = oidcConfig.bearer_jwt_auth_allowed_auds or oidcConfig.client_id
-
-  local jwt_validators = require "resty.jwt-validators"
-  jwt_validators.set_system_leeway(120)
-  local claim_spec = {
-    -- mandatory for id token: iss, sub, aud, exp, iat
-    iss = jwt_validators.equals(discovery_doc.issuer),
-    sub = jwt_validators.required(),
-    aud = function(val) return utils.has_common_item(val, allowed_auds) end,
-    exp = jwt_validators.is_not_expired(),
-    iat = jwt_validators.required(),
-    -- optional validations
-    nbf = jwt_validators.opt_is_not_before(),
-  }
-
-  local json, err, token = require("resty.openidc").bearer_jwt_verify(opts, claim_spec)
-  if err then
-    kong.log.err('Bearer JWT verify failed: ' .. err)
-    return nil
-  end
-
-  return json
 end
 
 return OidcHandler
