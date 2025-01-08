@@ -207,7 +207,7 @@ function verify_bearer_jwt(oidcConfig)
     token_signing_alg_values_expected = oidcConfig.bearer_jwt_auth_signing_algs,
     discovery = oidcConfig.discovery,
     timeout = oidcConfig.timeout,
-    ssl_verify = oidcConfig.ssl_verify,
+    ssl_verify = oidcConfig.ssl_verify
   }
 
   local discovery_doc, err = require("resty.openidc").get_discovery_doc(opts)
@@ -220,26 +220,9 @@ function verify_bearer_jwt(oidcConfig)
 
   local jwt_validators = require "resty.jwt-validators"
   jwt_validators.set_system_leeway(120)
-
-  -- Determine the issuer validation logic
-  local issuer_validator
-  if oidcConfig.allowed_issuers and #oidcConfig.allowed_issuers > 0 then
-    issuer_validator = function(iss)
-      for _, allowed_issuer in ipairs(oidcConfig.allowed_issuers) do
-        if iss == allowed_issuer then
-          return true
-        end
-      end
-      return false, "Issuer is not allowed"
-    end
-  else
-    -- Default single issuer validation
-    issuer_validator = jwt_validators.equals(discovery_doc.issuer)
-  end
-
   local claim_spec = {
     -- mandatory for id token: iss, sub, aud, exp, iat
-    iss = issuer_validator,
+    iss = jwt_validators.equals(discovery_doc.issuer),
     sub = jwt_validators.required(),
     aud = function(val) return utils.has_common_item(val, allowed_auds) end,
     exp = jwt_validators.is_not_expired(),
