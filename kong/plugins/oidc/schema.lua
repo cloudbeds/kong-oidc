@@ -84,6 +84,22 @@ return {
           elements = introspection_schema,
           required = false
         } },
+        -- legacy config support. Will be deprecated in the next version
+        { unauth_action = {
+          type = "string",
+          required = false,
+          default = "deny"
+        } },
+        { bearer_jwt_auth_enable = {
+          type = "string",
+          required = false,
+          default = "no"
+        } },
+        { bearer_only = {
+          type = "string",
+          required = false,
+          default = "yes"
+        } },
       }
     } },
   }
