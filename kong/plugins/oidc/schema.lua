@@ -100,6 +100,21 @@ return {
           required = false,
           default = "yes"
         } },
+        { discovery = {
+          type = "string",
+          required = false,
+          default = ""
+        } },
+        { token_endpoint_auth_method = {
+          type = "string",
+          required = false,
+          default = "client_secret_post"
+        } },
+        { response_type = {
+          type = "string",
+          required = false,
+          default = "code"
+        } },
       }
     } },
   }
