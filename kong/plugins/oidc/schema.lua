@@ -103,7 +103,7 @@ return {
         { discovery = {
           type = "string",
           required = false,
-          default = ""
+          default = "none"
         } },
         { token_endpoint_auth_method = {
           type = "string",
