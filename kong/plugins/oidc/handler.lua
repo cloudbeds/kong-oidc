@@ -1,5 +1,5 @@
 local OidcHandler = {
-    VERSION = "1.3.0",
+    VERSION = "1.4.0",
     PRIORITY = 1000,
 }
 local utils = require("kong.plugins.oidc.utils")
@@ -42,6 +42,9 @@ function handle(oidcConfig)
         utils.injectUser(response, oidcConfig.userinfo_header_name)
       end
       return
+    elseif utils.has_bearer_access_token() then
+      ngx.log(ngx.ERR, "OidcHandler bearer JWT verification failed, returning 401")
+      return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid bearer token")
     end
   end
 
@@ -54,6 +57,9 @@ function handle(oidcConfig)
       if not oidcConfig.disable_userinfo_header then
         utils.injectUser(response, oidcConfig.userinfo_header_name)
       end
+    elseif utils.has_bearer_access_token() then
+      ngx.log(ngx.ERR, "OidcHandler introspection failed for bearer token, returning 401")
+      return kong.response.error(ngx.HTTP_UNAUTHORIZED, "Invalid bearer token")
     end
   end
 
