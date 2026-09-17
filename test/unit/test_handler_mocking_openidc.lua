@@ -191,6 +191,48 @@ function TestHandler:test_bearer_only_with_bad_token()
   lu.assertFalse(self:log_contains("introspect succeeded"))
 end
 
+-- lua-resty-openidc's bearer extraction crashes (nil 'divider') on a header
+-- without a space; the plugin must reject it with 401 before calling it
+local function assert_malformed_authorization_rejected(self, header_value)
+  local openidc_called = false
+  self.module_resty.openidc.introspect = function(opts)
+    openidc_called = true
+    return {sub = "sub"}, false
+  end
+  ngx.req.get_headers = function() return {Authorization = header_value} end
+
+  self.handler:access({introspection_endpoint = "x", bearer_only = "yes", realm = "kong"})
+
+  lu.assertFalse(openidc_called)
+  lu.assertEquals(ngx.header["WWW-Authenticate"], 'Bearer realm="kong",error="no Bearer authorization header value found"')
+  lu.assertEquals(ngx.status, ngx.HTTP_UNAUTHORIZED)
+  lu.assertFalse(self:log_contains("introspect succeeded"))
+end
+
+function TestHandler:test_bearer_only_with_token_without_scheme()
+  assert_malformed_authorization_rejected(self, "xxx")
+end
+
+function TestHandler:test_bearer_only_with_bare_bearer_scheme()
+  assert_malformed_authorization_rejected(self, "Bearer")
+end
+
+function TestHandler:test_bearer_only_with_non_bearer_scheme()
+  assert_malformed_authorization_rejected(self, "Basic xxx")
+end
+
+function TestHandler:test_bearer_only_without_authorization_header_calls_openidc()
+  self.module_resty.openidc.introspect = function(opts)
+    return {}, "no Authorization header found"
+  end
+  ngx.req.get_headers = function() return {} end
+
+  self.handler:access({introspection_endpoint = "x", bearer_only = "yes", realm = "kong"})
+
+  lu.assertEquals(ngx.header["WWW-Authenticate"], 'Bearer realm="kong",error="no Authorization header found"')
+  lu.assertEquals(ngx.status, ngx.HTTP_UNAUTHORIZED)
+end
+
 function TestHandler:test_introspect_bearer_token_and_property_mapping()
   self.module_resty.openidc.bearer_jwt_verify = function(opts)
     return {foo = "bar"}, false
