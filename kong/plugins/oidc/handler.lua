@@ -110,7 +110,7 @@ function make_oidc(oidcConfig)
 end
 
 local function bearer_unauthorized(oidcConfig, err)
-  ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
+  ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. (oidcConfig.realm or "kong") .. '",error="' .. err .. '"'
   return kong.response.error(ngx.HTTP_UNAUTHORIZED)
 end
 

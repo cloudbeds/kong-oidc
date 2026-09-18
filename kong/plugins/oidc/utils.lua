@@ -198,6 +198,7 @@ end
 
 function M.get_authorization_header()
   local header = ngx.req.get_headers()['Authorization']
+  -- duplicate headers arrive as a table; only the first value is honoured
   if type(header) == "table" then
     header = header[1]
   end

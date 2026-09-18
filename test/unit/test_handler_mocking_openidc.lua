@@ -217,6 +217,17 @@ function TestHandler:test_bearer_only_with_bare_bearer_scheme()
   assert_malformed_authorization_rejected(self, "Bearer")
 end
 
+function TestHandler:test_bearer_only_malformed_header_without_realm()
+  self.module_resty.openidc.introspect = function(opts) return {}, false end
+  ngx.req.get_headers = function() return {Authorization = "xxx"} end
+
+  self.handler:access({introspection_endpoint = "x", bearer_only = "yes"})
+
+  lu.assertEquals(ngx.header["WWW-Authenticate"],
+    'Bearer realm="kong",error="no Bearer authorization header value found"')
+  lu.assertEquals(ngx.status, ngx.HTTP_UNAUTHORIZED)
+end
+
 function TestHandler:test_bearer_only_with_non_bearer_scheme()
   assert_malformed_authorization_rejected(self, "Basic xxx")
 end
