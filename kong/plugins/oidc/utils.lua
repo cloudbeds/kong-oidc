@@ -209,13 +209,14 @@ function M.get_authorization_header()
 end
 
 -- true only for a well-formed "Bearer <token>" header; lua-resty-openidc
--- crashes on a value without a space, so callers must never pass one through
+-- crashes on a value without a literal ' ' (it splits on that, not on %s),
+-- so callers must never pass one through
 function M.has_bearer_access_token()
   local header = M.get_authorization_header()
   if header == nil then
     return false
   end
-  local scheme, token = header:match("^(%S+)%s+(%S.*)$")
+  local scheme, token = header:match("^(%S+) (%S.*)$")
   return scheme ~= nil and string.lower(scheme) == "bearer" and token ~= nil
 end
 
