@@ -196,15 +196,27 @@ function M.injectHeaders(header_names, header_claims, sources)
   end
 end
 
-function M.has_bearer_access_token()
+function M.get_authorization_header()
   local header = ngx.req.get_headers()['Authorization']
-  if header and header:find(" ") then
-    local divider = header:find(' ')
-    if string.lower(header:sub(0, divider-1)) == string.lower("Bearer") then
-      return true
-    end
+  -- duplicate headers arrive as a table; only the first value is honoured
+  if type(header) == "table" then
+    header = header[1]
   end
-  return false
+  if type(header) == "string" then
+    return header
+  end
+  return nil
+end
+
+-- true only for a well-formed "Bearer <token>" header; lua-resty-openidc
+-- crashes on a value without a space, so callers must never pass one through
+function M.has_bearer_access_token()
+  local header = M.get_authorization_header()
+  if header == nil then
+    return false
+  end
+  local scheme, token = header:match("^(%S+)%s+(%S.*)$")
+  return scheme ~= nil and string.lower(scheme) == "bearer" and token ~= nil
 end
 
 -- verify if tables t1 and t2 have at least one common string item

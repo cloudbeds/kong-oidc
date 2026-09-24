@@ -109,8 +109,18 @@ function make_oidc(oidcConfig)
   return res
 end
 
+local function bearer_unauthorized(oidcConfig, err)
+  ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. (oidcConfig.realm or "kong") .. '",error="' .. err .. '"'
+  return kong.response.error(ngx.HTTP_UNAUTHORIZED)
+end
+
 function introspect(oidcConfig)
-  if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
+  local has_bearer_token = utils.has_bearer_access_token()
+  if has_bearer_token or oidcConfig.bearer_only == "yes" then
+    if not has_bearer_token and utils.get_authorization_header() ~= nil then
+      ngx.log(ngx.DEBUG, "OidcHandler rejecting malformed Authorization header, requested path: " .. ngx.var.request_uri)
+      return bearer_unauthorized(oidcConfig, "no Bearer authorization header value found")
+    end
     local res, err
     if oidcConfig.use_jwks == "yes" then
       res, err = require("resty.openidc").bearer_jwt_verify(oidcConfig)
@@ -120,8 +130,7 @@ function introspect(oidcConfig)
     if err then
       ngx.log(ngx.DEBUG, "oidc error: " .. cjson.encode(err) .. cjson.encode(res) .. cjson.encode(utils.sanitize_oidc_config(oidcConfig)))
       if oidcConfig.bearer_only == "yes" then
-        ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
-        return kong.response.error(ngx.HTTP_UNAUTHORIZED)
+        return bearer_unauthorized(oidcConfig, err)
       end
       return nil
     end
