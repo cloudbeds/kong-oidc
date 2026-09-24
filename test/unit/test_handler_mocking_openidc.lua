@@ -217,6 +217,10 @@ function TestHandler:test_bearer_only_with_bare_bearer_scheme()
   assert_malformed_authorization_rejected(self, "Bearer")
 end
 
+function TestHandler:test_bearer_only_with_tab_separated_bearer()
+  assert_malformed_authorization_rejected(self, "Bearer\txxx")
+end
+
 function TestHandler:test_bearer_only_malformed_header_without_realm()
   self.module_resty.openidc.introspect = function(opts) return {}, false end
   ngx.req.get_headers = function() return {Authorization = "xxx"} end

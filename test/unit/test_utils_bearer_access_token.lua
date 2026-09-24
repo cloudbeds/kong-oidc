@@ -61,6 +61,20 @@ function TestToken:test_access_token_bearer_with_trailing_space_only()
   lu.assertFalse(utils.has_bearer_access_token())
 end
 
+function TestToken:test_access_token_bearer_tab_separated()
+  _G.ngx = {req = {
+    get_headers = function() return {Authorization = "Bearer\txxx"} end }
+  }
+  lu.assertFalse(utils.has_bearer_access_token())
+end
+
+function TestToken:test_access_token_bearer_tab_then_space()
+  _G.ngx = {req = {
+    get_headers = function() return {Authorization = "Bearer\t xxx"} end }
+  }
+  lu.assertFalse(utils.has_bearer_access_token())
+end
+
 function TestToken:test_access_token_other_scheme()
   _G.ngx = {req = {
     get_headers = function() return {Authorization = "Basic xxx"} end }
