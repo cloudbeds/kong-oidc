@@ -168,7 +168,16 @@ end
 
 function TestHandler:test_discovery_issuer_accepted()
   self.jwt_token = valid_token({ iss = DISCOVERY_ISSUER })
-  self.handler:access(self:base_config({ bearer_jwt_auth_allowed_issuers = nil }))
+  self.handler:access(self:base_config({ bearer_jwt_auth_allowed_issuers = {} }))
+  lu.assertEquals(ngx.ctx.authenticated_credential.id, "sub111")
+  lu.assertEquals(self.introspect_calls, 0)
+end
+
+function TestHandler:test_discovery_issuer_accepted_option_unset()
+  self.jwt_token = valid_token({ iss = DISCOVERY_ISSUER })
+  local config = self:base_config()
+  config.bearer_jwt_auth_allowed_issuers = nil
+  self.handler:access(config)
   lu.assertEquals(ngx.ctx.authenticated_credential.id, "sub111")
   lu.assertEquals(self.introspect_calls, 0)
 end

@@ -160,12 +160,12 @@ local function issuer_validator(discovery_issuer, extra)
     if iss == discovery_issuer then
       return true
     end
-    for _, allowed in pairs(extra or {}) do
+    for _, allowed in ipairs(extra or {}) do
       if iss == allowed then
         return true
       end
     end
-    return false
+    return false, "issuer not allowed"
   end
 end
 
