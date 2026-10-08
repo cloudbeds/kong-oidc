@@ -263,6 +263,16 @@ return {
             }
           },
           {
+            bearer_jwt_auth_allowed_issuers = {
+              type = "array",
+              required = false,
+              elements = {
+                type = "string"
+              },
+              default = {}
+            }
+          },
+          {
             bearer_jwt_auth_signing_algs = {
               type = "array",
               required = true,

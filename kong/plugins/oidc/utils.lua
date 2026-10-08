@@ -81,6 +81,7 @@ function M.get_options(config, ngx)
     skip_already_auth_requests = config.skip_already_auth_requests == "yes",
     bearer_jwt_auth_enable = config.bearer_jwt_auth_enable == "yes",
     bearer_jwt_auth_allowed_auds = config.bearer_jwt_auth_allowed_auds,
+    bearer_jwt_auth_allowed_issuers = config.bearer_jwt_auth_allowed_issuers,
     bearer_jwt_auth_signing_algs = config.bearer_jwt_auth_signing_algs,
     header_names = config.header_names or {},
     header_claims = config.header_claims or {},
