@@ -77,6 +77,43 @@ function TestUtils:testOptions()
 
 end
 
+function TestUtils:testOptionsBearerJwtAuthAllowedIssuers()
+  local opts = utils.get_options({
+    bearer_jwt_auth_allowed_issuers = { "https://oidc/v1/oauth", "https://other-iss" },
+  }, {var = {request_uri = "/path"},
+    req = {get_uri_args = function() return nil end}})
+
+  lu.assertEquals(opts.bearer_jwt_auth_allowed_issuers, { "https://oidc/v1/oauth", "https://other-iss" })
+end
+
+function TestUtils:testSchemaBearerJwtAuthAllowedIssuers()
+  package.preload["kong.db.schema.typedefs"] = function()
+    return {
+      no_consumer = true,
+      protocols_http = { "http", "https" },
+    }
+  end
+  package.loaded["kong.plugins.oidc.schema"] = nil
+  local schema = require("kong.plugins.oidc.schema")
+
+  local field
+  for _, f in ipairs(schema.fields) do
+    if f.config then
+      for _, config_field in ipairs(f.config.fields) do
+        if config_field.bearer_jwt_auth_allowed_issuers then
+          field = config_field.bearer_jwt_auth_allowed_issuers
+        end
+      end
+    end
+  end
+
+  lu.assertNotNil(field)
+  lu.assertEquals(field.type, "array")
+  lu.assertEquals(field.required, false)
+  lu.assertEquals(field.default, {})
+  lu.assertEquals(field.elements.type, "string")
+end
+
 function TestUtils:testCommonItem()
   lu.assertFalse(utils.has_common_item(nil, "aud1"))
   lu.assertTrue(utils.has_common_item("aud1", "aud1"))

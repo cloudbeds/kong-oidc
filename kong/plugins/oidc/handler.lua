@@ -155,6 +155,20 @@ function introspect(oidcConfig)
   return nil
 end
 
+local function issuer_validator(discovery_issuer, extra)
+  return function(iss)
+    if iss == discovery_issuer then
+      return true
+    end
+    for _, allowed in pairs(extra or {}) do
+      if iss == allowed then
+        return true
+      end
+    end
+    return false
+  end
+end
+
 function verify_bearer_jwt(oidcConfig)
   if not utils.has_bearer_access_token() then
     return nil
@@ -181,7 +195,7 @@ function verify_bearer_jwt(oidcConfig)
   jwt_validators.set_system_leeway(120)
   local claim_spec = {
     -- mandatory for id token: iss, sub, aud, exp, iat
-    iss = jwt_validators.equals(discovery_doc.issuer),
+    iss = issuer_validator(discovery_doc.issuer, oidcConfig.bearer_jwt_auth_allowed_issuers),
     sub = jwt_validators.required(),
     aud = function(val) return utils.has_common_item(val, allowed_auds) end,
     exp = jwt_validators.is_not_expired(),
